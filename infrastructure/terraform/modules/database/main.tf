@@ -11,7 +11,7 @@ resource "aws_db_instance" "postgres" {
   storage_type         = "gp2"
   storage_encrypted    = true
   
-  db_name  = "${var.project_name}_db"
+  db_name  = replace("${var.project_name}_db", "-", "_")
   username = var.db_username
   password = var.db_password
   
