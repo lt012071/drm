@@ -1,0 +1,82 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: drm-db
+    environment:
+      POSTGRES_DB: drm_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d
+    networks:
+      - drm-network
+
+  # Backend API
+  backend:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: drm-backend
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - USE_MOCK_DATA=false
+      - SKIP_AUTH=true
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    depends_on:
+      - db
+    networks:
+      - drm-network
+    command: npm run dev
+
+  # Frontend
+  frontend:
+    build: 
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: drm-frontend
+    environment:
+      - VITE_API_URL=http://localhost:3001
+      - VITE_USE_MOCK_SERVICE=false
+      - VITE_SKIP_AUTH=false
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - drm-network
+    command: npm run dev
+
+  # Redis (for session storage)
+  redis:
+    image: redis:7-alpine
+    container_name: drm-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - drm-network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  drm-network:
+    driver: bridge
